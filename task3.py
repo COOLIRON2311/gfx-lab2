@@ -39,6 +39,7 @@ class Window(tk.Tk):
         self.data = np.asarray(img).copy()
         self.canvas.config(width=img.width, height=img.height)
         self.title(self.filename)
+        # TODO: Set hue, saturation, value to proper values
         self.update_image()
 
     def save_file(self):
