@@ -12,9 +12,9 @@ def image_2_grayscale(image):
 
     gs_diff = abs(hdtv - ntsc)
 
-    ntsc = ntsc.astype(np.uint8)
-    hdtv = hdtv.astype(np.uint8)
-    gs_diff = gs_diff.astype(np.uint8)
+    ntsc: np.ndarray = ntsc.astype(np.uint8)
+    hdtv: np.ndarray = hdtv.astype(np.uint8)
+    gs_diff: np.ndarray = gs_diff.astype(np.uint8)
 
     out1 = im.fromarray(ntsc)
     out2 = im.fromarray(hdtv)
@@ -33,8 +33,8 @@ def image_2_grayscale(image):
     axis[1][0].imshow(out_diff, cmap='gray')
     axis[1][0].set_title('Difference')
 
-    axis[1][1].plot(range(0, 256), np.histogram(ntsc, bins=256)[0])
-    axis[1][2].plot(range(0, 256), np.histogram(hdtv, bins=256)[0])
+    axis[1][1].hist(ntsc.ravel(), bins=256, range=(0, 256))
+    axis[1][2].hist(hdtv.ravel(), bins=256, range=(0, 256))
 
     for i in range(2):
         for j in range(3):
