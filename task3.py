@@ -104,7 +104,7 @@ class Window(tk.Tk):
         self.update_image()
 
 
-@njit(parallel=True, cache=True, inline='always')
+@njit(cache=True, inline='always')
 def HSVtoRGB(pixel: np.ndarray) -> np.ndarray:
     h = pixel[0]
     s = pixel[1] / 100
@@ -131,7 +131,7 @@ def HSVtoRGB(pixel: np.ndarray) -> np.ndarray:
         return np.array([v, p, q]) * 255
 
 
-@njit(parallel=True, cache=True, inline='always')
+@njit(cache=True, inline='always')
 def RGBtoHSV(pixel: np.ndarray) -> np.ndarray:
     r = pixel[0]/255
     g = pixel[1]/255
@@ -155,12 +155,12 @@ def RGBtoHSV(pixel: np.ndarray) -> np.ndarray:
     return np.array([h, s*100, v*100])
 
 
-@njit(parallel=True, cache=True, inline='always')
+@njit(cache=True, inline='always')
 def norm_pixel(pixel: np.ndarray) -> np.ndarray:
     return pixel / 255
 
 
-@njit(parallel=True, cache=True, inline='always')
+@njit(cache=True, inline='always')
 def calc_hue(pixel: np.ndarray) -> np.ndarray:
     if pixel[0] == pixel[1] and pixel[1] == pixel[2]:
         return 0
