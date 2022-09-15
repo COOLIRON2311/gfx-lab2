@@ -1,9 +1,9 @@
-
 import tkinter as tk
+from math import floor
 from tkinter import filedialog as fd
 
-import math
 import numpy as np
+from numba import njit, prange
 from PIL import Image as im
 from PIL import ImageTk as itk
 
@@ -12,6 +12,7 @@ class Window(tk.Tk):
     filename: str
     data: np.ndarray
     image: 'tk._CanvasItemId'
+    hsv_data: np.ndarray
 
     def __init__(self):
         super().__init__()
@@ -25,7 +26,8 @@ class Window(tk.Tk):
         self.save = tk.Button(self.buttons, text='Save', command=self.save_file)
         self.canvas = tk.Canvas(self, width=10, height=20, bg='white')
         self.hue = tk.Scale(self, from_=0, to=360, orient=tk.HORIZONTAL, command=self.__hue, label='Hue')
-        self.saturation = tk.Scale(self, from_=-50, to=50, orient=tk.HORIZONTAL, command=self.__saturation, label='Saturation')
+        self.saturation = tk.Scale(self, from_=-50, to=50, orient=tk.HORIZONTAL,
+                                   command=self.__saturation, label='Saturation')
         self.value = tk.Scale(self, from_=-50, to=50, orient=tk.HORIZONTAL, command=self.__value, label='Value')
         self.canvas.create_text(75, 20, text='No image', anchor=tk.NW)
         self.canvas.config(width=200, height=50)
@@ -46,15 +48,10 @@ class Window(tk.Tk):
         self.data = np.asarray(img).copy()
         self.canvas.config(width=img.width, height=img.height)
         self.title(self.filename)
-        # TODO: Set hue, saturation, value to proper values
-        self.hsv_data = []
-        for i in range(0,len(self.data)):
-            self.hsv_data.append([])
-            for j in range(0,len(self.data[i])):
-                #n_data[i].append([])
-                nv = RGBtoHSV(self.data[i][j])
-                self.hsv_data[i].append(nv)
-                #self.data[i][j] = hlv_data[i][0]
+        self.hsv_data = np.zeros((img.height, img.width, 3))
+        for i in range(0, self.hsv_data.shape[0]):
+            for j in range(0, self.hsv_data.shape[1]):
+                self.hsv_data[i][j] = RGBtoHSV(self.data[i][j])
         self.update_image()
 
     def save_file(self):
@@ -65,110 +62,127 @@ class Window(tk.Tk):
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image)
 
     def __hue(self, hue):
-        for i in range(0,len(self.data)):
-            for j in range(0,len(self.data[i])):
-                h = int(self.hsv_data[i][j][0] + int(hue)) % 360
-                s = int(self.hsv_data[i][j][1])
-                v = int(self.hsv_data[i][j][2])
-                r = HSVtoRGB([h,s,v])
-                r[0]*=255
-                r[1]*=255
-                r[2]*=255
-                self.data[i][j] = r
+        @njit(parallel=True, cache=True)
+        def hue_loop(hue, data: np.ndarray, hsv_data):
+            for i in prange(0, data.shape[0]):
+                for j in prange(0, data.shape[1]):
+                    h = int(hsv_data[i][j][0]+hue)
+                    s = int(hsv_data[i][j][1])
+                    v = int(hsv_data[i][j][2])
+                    r = HSVtoRGB([h, s, v])
+                    data[i][j] = r
+            return data
+        self.data = hue_loop(int(hue), self.data, self.hsv_data)
         self.update_image()
 
     def __saturation(self, saturation):
-        sat = int(saturation)
-        for i in range(0,len(self.data)):
-            for j in range(0,len(self.data[i])):
-                h = int(self.hsv_data[i][j][0])
-                s = min(abs(int(self.hsv_data[i][j][1]+sat)),100)
-                v = int(self.hsv_data[i][j][2])
-                r = HSVtoRGB([h,s,v])
-                r[0]*=255
-                r[1]*=255
-                r[2]*=255
-                self.data[i][j] = r
+        @njit(parallel=True, cache=True)
+        def saturation_loop(saturation, data: np.ndarray, hsv_data):
+            for i in prange(0, data.shape[0]):
+                for j in prange(0, data.shape[1]):
+                    h = int(hsv_data[i][j][0])
+                    s = min(int(abs(hsv_data[i][j][1]+saturation)), 100)
+                    v = int(hsv_data[i][j][2])
+                    r = HSVtoRGB([h, s, v])
+                    data[i][j] = r
+            return data
+        self.data = saturation_loop(int(saturation), self.data, self.hsv_data)
         self.update_image()
 
     def __value(self, value):
-        for i in range(0,len(self.data)):
-            for j in range(0,len(self.data[i])):
-                h = int(self.hsv_data[i][j][0])
-                s = int(self.hsv_data[i][j][1])
-                v = min(int(abs(self.hsv_data[i][j][2]+int(value))),100)
-                r = HSVtoRGB([h,s,v])
-                r[0]*=255
-                r[1]*=255
-                r[2]*=255
-                self.data[i][j] = r
+        @njit(parallel=True, cache=True)
+        def value_loop(value, data: np.ndarray, hsv_data):
+            for i in prange(0, data.shape[0]):
+                for j in prange(0, data.shape[1]):
+                    h = int(hsv_data[i][j][0])
+                    s = int(hsv_data[i][j][1])
+                    v = min(int(abs(hsv_data[i][j][2]+value)), 100)
+                    r = HSVtoRGB([h, s, v])
+                    data[i][j] = r
+            return data
+        self.data = value_loop(int(value), self.data, self.hsv_data)
         self.update_image()
 
-def HSVtoRGB(pixel):
-    H = pixel[0]
-    S = pixel[1]/100
-    V = pixel[2]/100
 
-    f = H/60 - math.floor(H/60)
-    p = V*(1-S)
-    q = V*(1-f*S)
-    t = V*(1-(1-f)*S)
+@njit(parallel=True, cache=True, inline='always')
+def HSVtoRGB(pixel: np.ndarray) -> np.ndarray:
+    h = pixel[0]
+    s = pixel[1] / 100
+    v = pixel[2] / 100
 
-    Hi = math.floor(H/60)%6
+    h = h / 60
+    i = floor(h)
+    f = h - i
+    p = v * (1 - s)
+    q = v * (1 - s * f)
+    t = v * (1 - s * (1 - f))
 
-    res = []
-
-    if Hi == 0:
-         res = [V,t,p]
-    elif Hi == 1:
-        res =  [q,V,p]
-    elif Hi == 2:
-        res= [p,V,t]
-    elif Hi == 3:
-        res=[p,q,V]
-    elif Hi == 4:
-        res=[t,p,V]
-    elif Hi == 5:
-        res= [V,p,q]
-
-    return res
-
-def RGBtoHSV(pixel):
-    p = norm_pixel(pixel)
-    return [calc_hue(p),calc_satur(p)*100,calc_val(p)*100]
-
-def norm_pixel(pixel):
-    s = sum(pixel)
-    if s != 0:
-        return pixel/255
+    if i == 0:
+        return np.array([v, t, p]) * 255
+    elif i == 1:
+        return np.array([q, v, p]) * 255
+    elif i == 2:
+        return np.array([p, v, t]) * 255
+    elif i == 3:
+        return np.array([p, q, v]) * 255
+    elif i == 4:
+        return np.array([t, p, v]) * 255
     else:
-        return pixel
+        return np.array([v, p, q]) * 255
 
-def calc_hue(pixel):
-    mx = max(pixel)
-    mn = min(pixel)
 
-    if mx == mn:
+@njit(parallel=True, cache=True, inline='always')
+def RGBtoHSV(pixel: np.ndarray) -> np.ndarray:
+    r = pixel[0]/255
+    g = pixel[1]/255
+    b = pixel[2]/255
+    cmax = max(r, g, b)
+    cmin = min(r, g, b)
+    delta = cmax - cmin
+    if delta == 0:
+        h = 0
+    elif cmax == r:
+        h = 60 * (((g - b) / delta) % 6)
+    elif cmax == g:
+        h = 60 * (((b - r) / delta) + 2)
+    else:
+        h = 60 * (((r - g) / delta) + 4)
+    if cmax == 0:
+        s = 0
+    else:
+        s = delta / cmax
+    v = cmax
+    return np.array([h, s*100, v*100])
+
+
+@njit(parallel=True, cache=True, inline='always')
+def norm_pixel(pixel: np.ndarray) -> np.ndarray:
+    return pixel / 255
+
+
+@njit(parallel=True, cache=True, inline='always')
+def calc_hue(pixel: np.ndarray) -> np.ndarray:
+    if pixel[0] == pixel[1] and pixel[1] == pixel[2]:
         return 0
-    elif mx == pixel[0] and pixel[1]>=pixel[2]:
-        return 60*(pixel[1]-pixel[2])/(mx-mn)
-    elif mx == pixel[0] and pixel[1]<pixel[2]:
-        return 60*(pixel[1]-pixel[2])/(mx-mn)+360
-    elif mx == pixel[1]:
-        return 60*(pixel[2]-pixel[0])/(mx-mn)+120
-    elif mx == pixel[2]:
-        return 60*(pixel[0]-pixel[1])/(mx-mn)+240
+    if pixel[0] >= pixel[1] and pixel[0] >= pixel[2]:
+        return 60 * ((pixel[1] - pixel[2]) / (max(pixel) - min(pixel)))
+    elif pixel[1] >= pixel[0] and pixel[1] >= pixel[2]:
+        return 60 * ((pixel[2] - pixel[0]) / (max(pixel) - min(pixel))) + 120
+    else:
+        return 60 * ((pixel[0] - pixel[1]) / (max(pixel) - min(pixel))) + 240
 
-    return 0
 
-def calc_val(pixel):
+@njit(cache=True, inline='always')
+def calc_val(pixel: np.ndarray) -> int:
     return max(pixel)
 
-def calc_satur(pixel):
+
+@njit(cache=True, inline='always')
+def calc_satur(pixel: np.ndarray) -> int:
     mx = max(pixel)
     mn = min(pixel)
 
-    if max == 0:
+    if mx == 0:
         return 0
     else:
         return 1-mn/mx
