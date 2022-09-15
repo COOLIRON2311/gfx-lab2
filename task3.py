@@ -25,17 +25,20 @@ class Window(tk.Tk):
         self.save = tk.Button(self.buttons, text='Save', command=self.save_file)
         self.canvas = tk.Canvas(self, width=10, height=20, bg='white')
         self.hue = tk.Scale(self, from_=0, to=360, orient=tk.HORIZONTAL, command=self.__hue, label='Hue')
-        self.saturation = tk.Scale(self, from_=0, to=100, orient=tk.HORIZONTAL, command=self.__saturation, label='Saturation')
-        self.value = tk.Scale(self, from_=0, to=100, orient=tk.HORIZONTAL, command=self.__value, label='Value')
+        self.saturation = tk.Scale(self, from_=-50, to=50, orient=tk.HORIZONTAL, command=self.__saturation, label='Saturation')
+        self.value = tk.Scale(self, from_=-50, to=50, orient=tk.HORIZONTAL, command=self.__value, label='Value')
         self.canvas.create_text(75, 20, text='No image', anchor=tk.NW)
         self.canvas.config(width=200, height=50)
-        self.canvas.pack(padx=5, pady=5)
+        self.canvas.pack()
         self.hue.pack(fill=tk.X)
         self.saturation.pack(fill=tk.X)
         self.value.pack(fill=tk.X)
         self.buttons.pack()
         self.open.pack(padx=5, pady=5, side=tk.LEFT)
         self.save.pack(padx=5, pady=5, side=tk.RIGHT)
+
+        self.saturation.set(0)
+        self.value.set(0)
 
     def open_file(self):
         self.filename = fd.askopenfilename()
@@ -75,10 +78,11 @@ class Window(tk.Tk):
         self.update_image()
 
     def __saturation(self, saturation):
+        sat = int(saturation)
         for i in range(0,len(self.data)):
             for j in range(0,len(self.data[i])):
                 h = int(self.hsv_data[i][j][0])
-                s = int(self.hsv_data[i][j][1]+int(saturation))%100
+                s = min(abs(int(self.hsv_data[i][j][1]+sat)),100)
                 v = int(self.hsv_data[i][j][2])
                 r = HSVtoRGB([h,s,v])
                 r[0]*=255
@@ -92,7 +96,7 @@ class Window(tk.Tk):
             for j in range(0,len(self.data[i])):
                 h = int(self.hsv_data[i][j][0])
                 s = int(self.hsv_data[i][j][1])
-                v = int(self.hsv_data[i][j][2]+int(value))%100
+                v = min(int(abs(self.hsv_data[i][j][2]+int(value))),100)
                 r = HSVtoRGB([h,s,v])
                 r[0]*=255
                 r[1]*=255
