@@ -106,53 +106,36 @@ class Window(tk.Tk):
 
 @njit(cache=True, inline='always')
 def HSVtoRGB(pixel: np.ndarray) -> np.ndarray:
-    h = pixel[0]
-    s = pixel[1] / 100
-    v = pixel[2] / 100
+    H = pixel[0]
+    S = pixel[1]/100
+    V = pixel[2]/100
 
-    h = h / 60
-    i = floor(h)
-    f = h - i
-    p = v * (1 - s)
-    q = v * (1 - s * f)
-    t = v * (1 - s * (1 - f))
+    f = H/60 - floor(H/60)
+    p = V*(1-S)
+    q = V*(1-f*S)
+    t = V*(1-(1-f)*S)
 
-    if i == 0:
-        return np.array([v, t, p]) * 255
-    elif i == 1:
-        return np.array([q, v, p]) * 255
-    elif i == 2:
-        return np.array([p, v, t]) * 255
-    elif i == 3:
-        return np.array([p, q, v]) * 255
-    elif i == 4:
-        return np.array([t, p, v]) * 255
-    else:
-        return np.array([v, p, q]) * 255
+    Hi = floor(H/60) % 6
+
+    match Hi:
+        case 0:
+            return np.array([V, t, p]) * 255
+        case 1:
+            return np.array([q, V, p]) * 255
+        case 2:
+            return np.array([p, V, t]) * 255
+        case 3:
+            return np.array([p, q, V]) * 255
+        case 4:
+            return np.array([t, p, V]) * 255
+        case 5:
+            return np.array([V, p, q]) * 255
 
 
 @njit(cache=True, inline='always')
 def RGBtoHSV(pixel: np.ndarray) -> np.ndarray:
-    r = pixel[0]/255
-    g = pixel[1]/255
-    b = pixel[2]/255
-    cmax = max(r, g, b)
-    cmin = min(r, g, b)
-    delta = cmax - cmin
-    if delta == 0:
-        h = 0
-    elif cmax == r:
-        h = 60 * (((g - b) / delta) % 6)
-    elif cmax == g:
-        h = 60 * (((b - r) / delta) + 2)
-    else:
-        h = 60 * (((r - g) / delta) + 4)
-    if cmax == 0:
-        s = 0
-    else:
-        s = delta / cmax
-    v = cmax
-    return np.array([h, s*100, v*100])
+    p = norm_pixel(pixel)
+    return np.array([calc_hue(p), calc_satur(p)*100, calc_val(p)*100])
 
 
 @njit(cache=True, inline='always')
