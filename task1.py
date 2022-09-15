@@ -14,7 +14,7 @@ def image_2_grayscale(image):
 
     ntsc: np.ndarray = ntsc.astype(np.uint8)
     hdtv: np.ndarray = hdtv.astype(np.uint8)
-    gs_diff = gs_diff.astype(np.uint8)
+    gs_diff: np.ndarray = gs_diff.astype(np.uint8)
 
     out1 = im.fromarray(ntsc)
     out2 = im.fromarray(hdtv)
