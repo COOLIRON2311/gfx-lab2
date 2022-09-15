@@ -54,9 +54,7 @@ class Window(tk.Tk):
         self.canvas.config(width=img.width, height=img.height)
         self.title(self.filename)
         self.hsv_data = np.zeros((img.height, img.width, 3))
-        for i in range(0, self.hsv_data.shape[0]):
-            for j in range(0, self.hsv_data.shape[1]):
-                self.hsv_data[i][j] = RGBtoHSV(self.data[i][j])
+        self.hsv_data = init_hsv(self.data, self.hsv_data)
         self.update_image()
 
     def save_file(self):
@@ -83,7 +81,15 @@ class Window(tk.Tk):
 
 
 @njit(parallel=True, cache=True)
-def hsv_loop(hue, saturation, value, data: np.ndarray, hsv_data):
+def init_hsv(data: np.ndarray, hsv_data: np.ndarray) -> np.ndarray:
+    for i in prange(0, hsv_data.shape[0]):
+        for j in range(0, hsv_data.shape[1]):
+            hsv_data[i][j] = RGBtoHSV(data[i][j])
+    return hsv_data
+
+
+@njit(parallel=True, cache=True)
+def hsv_loop(hue, saturation, value, data: np.ndarray, hsv_data) -> np.ndarray:
     for i in prange(0, data.shape[0]):
         for j in prange(0, data.shape[1]):
             h = int(hsv_data[i][j][0]+hue)
@@ -97,13 +103,13 @@ def hsv_loop(hue, saturation, value, data: np.ndarray, hsv_data):
 @njit(cache=True, inline='always')
 def HSVtoRGB(pixel: np.ndarray) -> np.ndarray:
     H = pixel[0]
-    S = pixel[1]/100
-    V = pixel[2]/100
+    S = pixel[1] / 100
+    V = pixel[2] / 100
 
     f = H/60 - floor(H/60)
-    p = V*(1-S)
-    q = V*(1-f*S)
-    t = V*(1-(1-f)*S)
+    p = V*(1 - S)
+    q = V*(1 - f*S)
+    t = V*(1 - (1 - f)*S)
 
     Hi = floor(H/60) % 6
 
@@ -135,14 +141,24 @@ def norm_pixel(pixel: np.ndarray) -> np.ndarray:
 
 @njit(cache=True, inline='always')
 def calc_hue(pixel: np.ndarray) -> np.ndarray:
-    if pixel[0] == pixel[1] and pixel[1] == pixel[2]:
+    mx = max(pixel)
+    mn = min(pixel)
+
+    if mx == mn:
         return 0
-    if pixel[0] >= pixel[1] and pixel[0] >= pixel[2]:
-        return 60 * ((pixel[1] - pixel[2]) / (max(pixel) - min(pixel)))
-    elif pixel[1] >= pixel[0] and pixel[1] >= pixel[2]:
-        return 60 * ((pixel[2] - pixel[0]) / (max(pixel) - min(pixel))) + 120
-    else:
-        return 60 * ((pixel[0] - pixel[1]) / (max(pixel) - min(pixel))) + 240
+
+    elif mx == pixel[0] and pixel[1] >= pixel[2]:
+        return 60 * (pixel[1] - pixel[2]) / (mx - mn)
+
+    elif mx == pixel[0] and pixel[1] < pixel[2]:
+        return 60 * (pixel[1] - pixel[2]) / (mx - mn) + 360
+
+    elif mx == pixel[1]:
+        return 60 * (pixel[2] - pixel[0]) / (mx - mn) + 120
+
+    elif mx == pixel[2]:
+        return 60 * (pixel[0] - pixel[1]) / (mx - mn) + 240
+    return 0
 
 
 @njit(cache=True, inline='always')
@@ -158,7 +174,7 @@ def calc_satur(pixel: np.ndarray) -> int:
     if mx == 0:
         return 0
     else:
-        return 1-mn/mx
+        return 1 - mn / mx
 
 
 if __name__ == '__main__':
