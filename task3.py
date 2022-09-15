@@ -27,7 +27,7 @@ class Window(tk.Tk):
         self.value = tk.Scale(self, from_=0, to=100, orient=tk.HORIZONTAL, command=self.__value, label='Value')
         self.canvas.create_text(75, 20, text='No image', anchor=tk.NW)
         self.canvas.config(width=200, height=50)
-        self.canvas.pack()
+        self.canvas.pack(padx=5, pady=5)
         self.hue.pack(fill=tk.X)
         self.saturation.pack(fill=tk.X)
         self.value.pack(fill=tk.X)
