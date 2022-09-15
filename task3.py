@@ -13,6 +13,9 @@ class Window(tk.Tk):
     data: np.ndarray
     image: 'tk._CanvasItemId'
     hsv_data: np.ndarray
+    H: int = 0
+    S: int = 0
+    V: int = 0
 
     def __init__(self):
         super().__init__()
@@ -26,8 +29,7 @@ class Window(tk.Tk):
         self.save = tk.Button(self.buttons, text='Save', command=self.save_file)
         self.canvas = tk.Canvas(self, width=10, height=20, bg='white')
         self.hue = tk.Scale(self, from_=0, to=360, orient=tk.HORIZONTAL, command=self.__hue, label='Hue')
-        self.saturation = tk.Scale(self, from_=-50, to=50, orient=tk.HORIZONTAL,
-                                   command=self.__saturation, label='Saturation')
+        self.saturation = tk.Scale(self, from_=-50, to=50, orient=tk.HORIZONTAL, command=self.__saturation, label='Saturation')
         self.value = tk.Scale(self, from_=-50, to=50, orient=tk.HORIZONTAL, command=self.__value, label='Value')
         self.canvas.create_text(75, 20, text='No image', anchor=tk.NW)
         self.canvas.config(width=200, height=50)
@@ -44,6 +46,9 @@ class Window(tk.Tk):
 
     def open_file(self):
         self.filename = fd.askopenfilename()
+        if not self.filename:
+            return
+
         img = im.open(self.filename)
         self.data = np.asarray(img).copy()
         self.canvas.config(width=img.width, height=img.height)
@@ -62,46 +67,31 @@ class Window(tk.Tk):
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image)
 
     def __hue(self, hue):
-        @njit(parallel=True, cache=True)
-        def hue_loop(hue, data: np.ndarray, hsv_data):
-            for i in prange(0, data.shape[0]):
-                for j in prange(0, data.shape[1]):
-                    h = int(hsv_data[i][j][0]+hue)
-                    s = int(hsv_data[i][j][1])
-                    v = int(hsv_data[i][j][2])
-                    r = HSVtoRGB([h, s, v])
-                    data[i][j] = r
-            return data
-        self.data = hue_loop(int(hue), self.data, self.hsv_data)
+        self.H = int(hue)
+        self.data = hsv_loop(self.H, self.S, self.V, self.data, self.hsv_data)
         self.update_image()
 
     def __saturation(self, saturation):
-        @njit(parallel=True, cache=True)
-        def saturation_loop(saturation, data: np.ndarray, hsv_data):
-            for i in prange(0, data.shape[0]):
-                for j in prange(0, data.shape[1]):
-                    h = int(hsv_data[i][j][0])
-                    s = min(int(abs(hsv_data[i][j][1]+saturation)), 100)
-                    v = int(hsv_data[i][j][2])
-                    r = HSVtoRGB([h, s, v])
-                    data[i][j] = r
-            return data
-        self.data = saturation_loop(int(saturation), self.data, self.hsv_data)
+        self.S = int(saturation)
+        self.data = hsv_loop(self.H, self.S, self.V, self.data, self.hsv_data)
         self.update_image()
 
     def __value(self, value):
-        @njit(parallel=True, cache=True)
-        def value_loop(value, data: np.ndarray, hsv_data):
-            for i in prange(0, data.shape[0]):
-                for j in prange(0, data.shape[1]):
-                    h = int(hsv_data[i][j][0])
-                    s = int(hsv_data[i][j][1])
-                    v = min(int(abs(hsv_data[i][j][2]+value)), 100)
-                    r = HSVtoRGB([h, s, v])
-                    data[i][j] = r
-            return data
-        self.data = value_loop(int(value), self.data, self.hsv_data)
+        self.V = int(value)
+        self.data = hsv_loop(self.H, self.S, self.V, self.data, self.hsv_data)
         self.update_image()
+
+
+@njit(parallel=True, cache=True)
+def hsv_loop(hue, saturation, value, data: np.ndarray, hsv_data):
+    for i in prange(0, data.shape[0]):
+        for j in prange(0, data.shape[1]):
+            h = int(hsv_data[i][j][0]+hue)
+            s = min(int(abs(hsv_data[i][j][1]+saturation)), 100)
+            v = min(int(abs(hsv_data[i][j][2]+value)), 100)
+            r = HSVtoRGB([h, s, v])
+            data[i][j] = r
+    return data
 
 
 @njit(cache=True, inline='always')

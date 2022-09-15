@@ -35,9 +35,9 @@ def rgb_decompose(image):
     axis[0][2].imshow(out3)
     axis[0][2].set_title('Blue')
 
-    axis[1][0].hist(a[..., 0].ravel(), bins=256, range=(0, 256), color='red')
-    axis[1][1].hist(a[..., 1].ravel(), bins=256, range=(0, 256), color='green')
-    axis[1][2].hist(a[..., 2].ravel(), bins=256, range=(0, 256), color='blue')
+    axis[1][0].hist(a[..., 0].ravel(), bins=256, range=(1, 256), color='red')
+    axis[1][1].hist(a[..., 1].ravel(), bins=256, range=(1, 256), color='green')
+    axis[1][2].hist(a[..., 2].ravel(), bins=256, range=(1, 256), color='blue')
 
     for i in range(3):
         axis[0][i].axis('off')
