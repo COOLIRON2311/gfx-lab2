@@ -92,7 +92,7 @@ def init_hsv(data: np.ndarray, hsv_data: np.ndarray) -> np.ndarray:
 def hsv_loop(hue, saturation, value, data: np.ndarray, hsv_data) -> np.ndarray:
     for i in prange(0, data.shape[0]):
         for j in prange(0, data.shape[1]):
-            h = int(hsv_data[i][j][0]+hue)
+            h = int(hsv_data[i][j][0]+hue) % 360
             s = min(int(abs(hsv_data[i][j][1]+saturation)), 100)
             v = min(int(abs(hsv_data[i][j][2]+value)), 100)
             r = HSVtoRGB([h, s, v])
@@ -111,7 +111,7 @@ def HSVtoRGB(pixel: np.ndarray) -> np.ndarray:
     q = V*(1 - f*S)
     t = V*(1 - (1 - f)*S)
 
-    Hi = floor(H/60) % 6
+    Hi = floor(H / 60) % 6
 
     match Hi:
         case 0:
